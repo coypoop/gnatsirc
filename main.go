@@ -110,8 +110,5 @@ func init() {
 	prRegexps = []*regexp.Regexp{
 		regexp.MustCompile("PR [a-z]*/([0-9]{4,5})"),
 		regexp.MustCompile("PR ([0-9]{4,5})"),
-		regexp.MustCompile(`^([0-9]{4,5})\s`),
-		regexp.MustCompile(`\s([0-9]{4,5})$`),
-		regexp.MustCompile(`\s([0-9]{4,5})\s`),
 	}
 }
