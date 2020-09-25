@@ -1,0 +1,2 @@
+# gopkg.in/irc.v3 v3.1.3
+gopkg.in/irc.v3
