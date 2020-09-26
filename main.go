@@ -2,17 +2,26 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
+	"time"
 
 	"gopkg.in/irc.v3"
 )
 
+const (
+	IRCServer = "chat.freenode.net:6667"
+	IRCChan = "#netbsd-code"
+	PRStartScan = 55680
+)
+
 func main() {
-	conn, err := net.Dial("tcp", "chat.freenode.net:6667")
+	conn, err := net.Dial("tcp", IRCServer)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -25,16 +34,17 @@ func main() {
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
 			if m.Command == "001" {
 				// 001 is a welcome event, so we join channels there
-				c.Write("JOIN #netbsd-code")
+				c.Write("JOIN " + IRCChan)
+				go observeNewPRs(c)
 			} else if m.Command == "PRIVMSG" && c.FromChannel(m) {
 				if selfMsg(m.Trailing()) {
 					return
 				}
-				prNum, prMatched := findPR(m.Trailing())
-				if prMatched {
+				prNum, err := findPR(m.Trailing())
+				if err != nil {
 					var outText string
 
-					prUrl := "https://gnats.netbsd.org/" + prNum
+					prUrl := toGnatsUrl(prNum)
 					prSynopsis, synopsisErr := findPRSynopsis(prUrl)
 
 					if synopsisErr != nil {
@@ -55,12 +65,59 @@ func main() {
 		}),
 	}
 
-	// Create the client
 	client := irc.NewClient(conn, config)
+
 	err = client.Run()
+	go observeNewPRs(client)
 	if err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func observeNewPRs(c *irc.Client) {
+	latestGoodPR := PRStartScan
+	lastPostedPR := PRStartScan
+	synopses := make(map[int]string)
+
+	for {
+		for currentPR := latestGoodPR; currentPR - latestGoodPR < 20; currentPR++ {
+			currentSynopsis, err := findPRSynopsis(fmt.Sprintf("https://gnats.netbsd.org/%d", currentPR))
+			if err != nil {
+				continue
+			}
+			latestGoodPR = currentPR
+			synopses[currentPR] = currentSynopsis
+		}
+
+		// First run, stay silent.
+		if (lastPostedPR == PRStartScan) {
+			lastPostedPR = latestGoodPR
+		}
+
+		// Don't spam too much...
+		if (latestGoodPR - lastPostedPR > 5) {
+			lastPostedPR = latestGoodPR - 5
+		}
+
+		for ; lastPostedPR < latestGoodPR; lastPostedPR++ {
+			if synopsis, ok := synopses[lastPostedPR+1]; ok {
+				outText := "new " + toGnatsUrl(lastPostedPR) + " " + synopsis
+				c.WriteMessage(&irc.Message{
+					Command: "PRIVMSG",
+					Params: []string{
+						IRCChan,
+						outText,
+					},
+				})
+
+			}
+		}
+		time.Sleep(10*time.Minute)
+	}
+}
+
+func toGnatsUrl(prNum int) string {
+	return fmt.Sprintf("https://gnats.netbsd.org/%d", prNum)
 }
 
 // does it look like a message that we sent?
@@ -90,14 +147,19 @@ func findPRSynopsis(prUrl string) (string, error) {
 	return "", errors.New("Not found synopsis in body")
 }
 
-func findPR(msg string) (string, bool) {
+func findPR(msg string) (int, error) {
 	for _, rgx := range prRegexps {
 		rs := rgx.FindStringSubmatch(msg)
 		if len(rs) > 1 {
-			return rs[1], true
+			prString := rs[1]
+			prNum, err := strconv.Atoi(prString)
+			if err != nil {
+				return 0, err
+			}
+			return prNum, nil
 		}
 	}
-	return "", false
+	return 0, errors.New("PR number not found")
 }
 
 var prRegexps []*regexp.Regexp
