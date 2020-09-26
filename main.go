@@ -105,7 +105,7 @@ var synopsisRegexp *regexp.Regexp
 var selfMsgRegexp *regexp.Regexp
 
 func init() {
-	selfMsgRegexp = regexp.MustCompile(`^https://gnats.netbsd.org`)
+	selfMsgRegexp = regexp.MustCompile(`https://gnats.netbsd.org`)
 	synopsisRegexp = regexp.MustCompile(`.*Synopsis:.... *(.*)`)
 	prRegexps = []*regexp.Regexp{
 		regexp.MustCompile("PR [a-z]*/([0-9]{4,5})"),
