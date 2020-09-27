@@ -41,7 +41,7 @@ func main() {
 					return
 				}
 				prNum, err := findPR(m.Trailing())
-				if err != nil {
+				if err == nil {
 					var outText string
 
 					prUrl := toGnatsUrl(prNum)
