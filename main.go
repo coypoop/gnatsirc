@@ -101,7 +101,7 @@ func observeNewPRs(c *irc.Client) {
 
 		for ; lastPostedPR < latestGoodPR; lastPostedPR++ {
 			if synopsis, ok := synopses[lastPostedPR+1]; ok {
-				outText := "new " + toGnatsUrl(lastPostedPR) + " " + synopsis
+				outText := "new " + toGnatsUrl(lastPostedPR+1) + " " + synopsis
 				c.WriteMessage(&irc.Message{
 					Command: "PRIVMSG",
 					Params: []string{
