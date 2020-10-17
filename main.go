@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/irc.v3"
@@ -141,8 +142,9 @@ func findPRSynopsis(prUrl string) (string, error) {
 	}
 	rs := synopsisRegexp.FindSubmatch(body)
 	if len(rs) > 1 {
-		prSynopsis := rs[1]
-		return string(prSynopsis), nil
+		prSynopsisHtmlSanitized := rs[1]
+		prSynopsis := undoHtmlSanitize(string(prSynopsisHtmlSanitized))
+		return prSynopsis, nil
 	}
 	return "", errors.New("Not found synopsis in body")
 }
@@ -160,6 +162,15 @@ func findPR(msg string) (int, error) {
 		}
 	}
 	return 0, errors.New("PR number not found")
+}
+
+func undoHtmlSanitize(msg string) string {
+	msg = strings.ReplaceAll(msg, "&gt;", ">")
+	msg = strings.ReplaceAll(msg, "&lt;", "<")
+	msg = strings.ReplaceAll(msg, "&amp;", "&")
+	msg = strings.ReplaceAll(msg, "&quot;", `"`)
+
+	return msg
 }
 
 var prRegexps []*regexp.Regexp
