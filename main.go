@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	IRCServer = "chat.freenode.net:6667"
-	IRCChan = "#netbsd-code"
+	IRCServer   = "chat.freenode.net:6667"
+	IRCChan     = "#netbsd-code"
 	PRStartScan = 55680
 )
 
@@ -81,7 +81,7 @@ func observeNewPRs(c *irc.Client) {
 	synopses := make(map[int]string)
 
 	for {
-		for currentPR := latestGoodPR; currentPR - latestGoodPR < 20; currentPR++ {
+		for currentPR := latestGoodPR; currentPR-latestGoodPR < 20; currentPR++ {
 			currentSynopsis, err := findPRSynopsis(fmt.Sprintf("https://gnats.netbsd.org/%d", currentPR))
 			if err != nil {
 				continue
@@ -91,12 +91,12 @@ func observeNewPRs(c *irc.Client) {
 		}
 
 		// First run, stay silent.
-		if (lastPostedPR == PRStartScan) {
+		if lastPostedPR == PRStartScan {
 			lastPostedPR = latestGoodPR
 		}
 
 		// Don't spam too much...
-		if (latestGoodPR - lastPostedPR > 5) {
+		if latestGoodPR-lastPostedPR > 5 {
 			lastPostedPR = latestGoodPR - 5
 		}
 
@@ -113,7 +113,7 @@ func observeNewPRs(c *irc.Client) {
 
 			}
 		}
-		time.Sleep(10*time.Minute)
+		time.Sleep(10 * time.Minute)
 	}
 }
 
