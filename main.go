@@ -74,9 +74,9 @@ func main() {
 		}),
 	}
 
-	client := irc.NewClient(conn, config)
 
 	for {
+		client := irc.NewClient(conn, config)
 		err = client.Run()
 		if err != nil {
 			log.Println(err)
