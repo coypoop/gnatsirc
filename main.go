@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,13 +17,18 @@ import (
 )
 
 const (
-	IRCServer   = "chat.freenode.net:6667"
-	IRCChan     = "#netbsd-code"
 	PRStartScan = 55680
 )
 
 func main() {
-	conn, err := net.Dial("tcp", IRCServer)
+	if len(os.Args) < 3 {
+		usage()
+	}
+
+	ircServer := os.Args[1]
+	ircChan := os.Args[2]
+
+	conn, err := net.Dial("tcp", ircServer)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -34,9 +40,11 @@ func main() {
 		Name: "GNATS urls on demand",
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
 			if m.Command == "001" {
+				log.Printf("Connected to server %s", ircServer)
 				// 001 is a welcome event, so we join channels there
-				c.Write("JOIN " + IRCChan)
-				go observeNewPRs(c)
+				c.Write("JOIN " + ircChan)
+				log.Printf("Joined %s", ircChan)
+				go observeNewPRs(c, ircChan)
 			} else if m.Command == "PRIVMSG" && c.FromChannel(m) {
 				if selfMsg(m.Trailing()) {
 					return
@@ -68,14 +76,15 @@ func main() {
 
 	client := irc.NewClient(conn, config)
 
-	err = client.Run()
-	go observeNewPRs(client)
-	if err != nil {
-		log.Fatalln(err)
+	for {
+		err = client.Run()
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
-func observeNewPRs(c *irc.Client) {
+func observeNewPRs(c *irc.Client, ircChan string) {
 	latestGoodPR := PRStartScan
 	lastPostedPR := PRStartScan
 	synopses := make(map[int]string)
@@ -106,7 +115,7 @@ func observeNewPRs(c *irc.Client) {
 				c.WriteMessage(&irc.Message{
 					Command: "PRIVMSG",
 					Params: []string{
-						IRCChan,
+						ircChan,
 						outText,
 					},
 				})
@@ -184,4 +193,9 @@ func init() {
 		regexp.MustCompile("PR [a-z]*/([0-9]{4,5})"),
 		regexp.MustCompile("PR ([0-9]{4,5})"),
 	}
+}
+
+func usage() {
+	fmt.Printf("Usage:\t%s irc.example.com:6667 #netbsd\n", os.Args[0])
+	os.Exit(1)
 }
