@@ -28,11 +28,6 @@ func main() {
 	ircServer := os.Args[1]
 	ircChan := os.Args[2]
 
-	conn, err := net.Dial("tcp", ircServer)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	config := irc.ClientConfig{
 		Nick: "gnat",
 		Pass: "password",
@@ -76,6 +71,11 @@ func main() {
 
 
 	for {
+		conn, err := net.Dial("tcp", ircServer)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
 		client := irc.NewClient(conn, config)
 		err = client.Run()
 		if err != nil {
