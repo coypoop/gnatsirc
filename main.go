@@ -21,22 +21,39 @@ const (
 )
 
 func main() {
-	if len(os.Args) < 3 {
+	credentials := false
+	ircPassword := "password"
+
+	if len(os.Args) < 4 {
 		usage()
 	}
 
 	ircServer := os.Args[1]
 	ircChan := os.Args[2]
+	ircUsername := os.Args[3]
+	if len(os.Args) >= 5 {
+		credentials = true
+		ircPassword = os.Args[4]
+	}
 
 	config := irc.ClientConfig{
-		Nick: "gnat",
-		Pass: "password",
-		User: "username",
+		Nick: ircUsername,
+		Pass: ircUsername,
+		User: ircPassword,
 		Name: "GNATS urls on demand",
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
 			if m.Command == "001" {
 				log.Printf("Connected to server %s", ircServer)
 				// 001 is a welcome event, so we join channels there
+				if credentials {
+					c.WriteMessage(&irc.Message{
+						Command: "PRIVMSG",
+						Params: []string{
+							"NickServ",
+							"IDENTIFY " + ircUsername + " " + ircPassword,
+						},
+					})
+				}
 				c.Write("JOIN " + ircChan)
 				log.Printf("Joined %s", ircChan)
 				go observeNewPRs(c, ircChan)
@@ -198,6 +215,6 @@ func init() {
 }
 
 func usage() {
-	fmt.Printf("Usage:\t%s irc.example.com:6667 #netbsd\n", os.Args[0])
+	fmt.Printf("Usage:\t%s irc.example.com:6667 #netbsd username [password]\n", os.Args[0])
 	os.Exit(1)
 }
