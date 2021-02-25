@@ -42,6 +42,7 @@ func main() {
 		User: ircPassword,
 		Name: "GNATS urls on demand",
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
+			fmt.Printf("%v\n", m)
 			if m.Command == "001" {
 				log.Printf("Connected to server %s", ircServer)
 				// 001 is a welcome event, so we join channels there
