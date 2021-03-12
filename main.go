@@ -92,6 +92,7 @@ func main() {
 		conn, err := net.Dial("tcp", ircServer)
 		if err != nil {
 			time.Sleep(1 * time.Minute)
+			continue
 		}
 
 		client := irc.NewClient(conn, config)
