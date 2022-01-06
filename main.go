@@ -64,7 +64,6 @@ func main() {
 		User: *ircUsername,
 		Name: "GNATS urls on demand",
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
-			fmt.Printf("%v\n", m)
 			if m.Command == "001" {
 				log.Printf("Connected to server %s", *ircServer)
 				// 001 is a welcome event, so we identify join channels now
@@ -141,8 +140,6 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 				continue
 			}
 			if !allowedCategory(currentCategory) {
-				fmt.Printf("Not posting new PR %d (%s), current category %s not in allowed categories %v\n",
-				    currentPR, currentSynopsis, currentCategory, allowedCategories)
 				continue
 			}
 			latestGoodPR = currentPR
