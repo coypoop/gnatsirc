@@ -23,10 +23,10 @@ const (
 
 var (
 	allowedCategories categorySlice
-	ircPassword *string
-	ircChannel *string
-	ircServer *string
-	ircUsername *string
+	ircPassword       *string
+	ircChannel        *string
+	ircServer         *string
+	ircUsername       *string
 )
 
 type categorySlice []string
@@ -50,9 +50,9 @@ func main() {
 	flag.Parse()
 
 	if ircServer == nil ||
-	   ircChannel == nil ||
-	   ircUsername == nil {
-		   usage()
+		ircChannel == nil ||
+		ircUsername == nil {
+		usage()
 	}
 	if len(os.Args) < 4 {
 		usage()
@@ -107,7 +107,6 @@ func main() {
 			}
 		}),
 	}
-
 
 	for {
 		conn, err := net.Dial("tcp", *ircServer)
@@ -178,7 +177,7 @@ func allowedCategory(testedCategory string) bool {
 		return true
 	}
 
-	for _, allowedCategory := range(allowedCategories) {
+	for _, allowedCategory := range allowedCategories {
 		if testedCategory == allowedCategory {
 			return true
 		}
