@@ -31,6 +31,8 @@ var (
 
 type categorySlice []string
 
+const ctcpVersionReply = "Code available at https://github.com/coypoop/gnatsirc/"
+
 func (i *categorySlice) String() string {
 	return "my string representation"
 }
@@ -103,6 +105,15 @@ func main() {
 							outText,
 						},
 					})
+				}
+			} else if isCTCP(m) {
+				requestingUser := m.Prefix.Name
+				switch ctcpType(m) {
+				case "VERSION":
+					c.WriteMessage(ctcpReply(requestingUser, "VERSION", ctcpVersionReply))
+					break
+				default:
+					break
 				}
 			}
 		}),
@@ -197,6 +208,38 @@ func selfMsg(msg string) bool {
 		return true
 	}
 	return false
+}
+
+const ctcpDelimiter = "\001"
+
+func isCTCP(m *irc.Message) bool {
+	if m.Command != "PRIVMSG" {
+		return false
+	}
+	message := m.Trailing()
+	if !strings.HasPrefix(message, ctcpDelimiter) {
+		return false
+	}
+	if !strings.HasSuffix(message, ctcpDelimiter) {
+		return false
+	}
+	return true
+}
+
+func ctcpType(m *irc.Message) string {
+	msg := m.Trailing()
+	return strings.TrimSuffix(strings.TrimPrefix(msg, ctcpDelimiter), ctcpDelimiter)
+}
+
+func ctcpReply(user, ctcpType, reply string) *irc.Message {
+	ctcpEscapedReply := ctcpDelimiter + ctcpType + " " + reply + ctcpDelimiter
+	return &irc.Message{
+		Command: "NOTICE",
+		Params: []string{
+			user,
+			ctcpEscapedReply,
+		},
+	}
 }
 
 func findPRCategory(prUrl string) (string, error) {
