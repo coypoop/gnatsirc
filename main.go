@@ -23,10 +23,10 @@ const (
 
 var (
 	allowedCategories categorySlice
-	ircPassword       *string
 	ircChannel        *string
 	ircServer         *string
 	ircUsername       *string
+	ircPassword       string
 )
 
 type categorySlice []string
@@ -42,10 +42,10 @@ func (i *categorySlice) Set(value string) error {
 
 func main() {
 	flag.Var(&allowedCategories, "allow-category", "Only post PRs from these categories.")
-	ircPassword = flag.String("irc-password", "irc-password", "Password to be used for ")
 	ircServer = flag.String("irc-server", "irc-server", "Which IRC server to connect, for example irc.example.com:6667")
 	ircChannel = flag.String("irc-channel", "irc-channel", "Which IRC channel to join, for example #my-channel")
 	ircUsername = flag.String("irc-username", "irc-username", "Which username to use on IRC")
+	ircPassword = os.Getenv("IRC_PASSWORD")
 
 	flag.Parse()
 
@@ -60,19 +60,19 @@ func main() {
 
 	config := irc.ClientConfig{
 		Nick: *ircUsername,
-		Pass: *ircPassword,
+		Pass: ircPassword,
 		User: *ircUsername,
 		Name: "GNATS urls on demand",
 		Handler: irc.HandlerFunc(func(c *irc.Client, m *irc.Message) {
 			if m.Command == "001" {
 				log.Printf("Connected to server %s", *ircServer)
 				// 001 is a welcome event, so we identify join channels now
-				if ircPassword != nil {
+				if ircPassword != "" {
 					c.WriteMessage(&irc.Message{
 						Command: "PRIVMSG",
 						Params: []string{
 							"NickServ",
-							"IDENTIFY " + *ircUsername + " " + *ircPassword,
+							"IDENTIFY " + *ircUsername + " " + ircPassword,
 						},
 					})
 				}
@@ -282,7 +282,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Printf("Usage:\t%s -irc-server irc.example.com:6667 -irc-channel #netbsd -irc-username username [-irc-password password] [-allow-category pkg]\n", os.Args[0])
+	fmt.Printf("Usage: [IRC_PASSWORD=password] \t%s -irc-server irc.example.com:6667 -irc-channel -irc-username gnat #netbsd [-allow-category pkg]\n", os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(1)
 }
