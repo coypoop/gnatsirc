@@ -98,8 +98,12 @@ func main() {
 					if err != nil {
 						return
 					}
+					prState, err := findPRState(prText)
+					if err != nil {
+						return
+					}
 
-					outText = prUrl + " " + prSynopsis
+					outText = prUrl + " (" + prState + ") " + prSynopsis
 
 					c.WriteMessage(&irc.Message{
 						Command: "PRIVMSG",
@@ -280,6 +284,10 @@ func findPRSynopsis(prText string) (string, error) {
 	return findFirstSubmatch(prText, synopsisRegexp)
 }
 
+func findPRState(prText string) (string, error) {
+	return findFirstSubmatch(prText, stateRegexp)
+}
+
 func findPR(msg string) (int, error) {
 	for _, rgx := range prRegexps {
 		rs := rgx.FindStringSubmatch(msg)
@@ -307,12 +315,14 @@ func undoHtmlSanitize(msg string) string {
 var prRegexps []*regexp.Regexp
 var synopsisRegexp *regexp.Regexp
 var categoryRegexp *regexp.Regexp
+var stateRegexp *regexp.Regexp
 var selfMsgRegexp *regexp.Regexp
 
 func init() {
 	selfMsgRegexp = regexp.MustCompile(`https://gnats.netbsd.org`)
 	synopsisRegexp = regexp.MustCompile(`.*Synopsis:.... *(.*)`)
 	categoryRegexp = regexp.MustCompile(`.*Category:.... *(.*)`)
+	stateRegexp = regexp.MustCompile(`.*State:.... *(.*)`)
 	prRegexps = []*regexp.Regexp{
 		regexp.MustCompile("PR [a-z]*/([0-9]{4,5})"),
 		regexp.MustCompile("PR ([0-9]{4,5})"),
