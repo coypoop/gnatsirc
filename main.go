@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	PRStartScan = 55680
+	PRStartScan = 57380
 )
 
 var (
