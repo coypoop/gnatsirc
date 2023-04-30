@@ -90,9 +90,12 @@ func main() {
 					var outText string
 
 					prUrl := toGnatsUrl(prNum)
-					prSynopsis, synopsisErr := findPRSynopsis(prUrl)
-
-					if synopsisErr != nil {
+					prText, err := getPRText(prUrl)
+					if err != nil {
+						return
+					}
+					prSynopsis, err := findPRSynopsis(prText)
+					if err != nil {
 						return
 					}
 
@@ -141,11 +144,17 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 
 	for {
 		for currentPR := latestGoodPR; currentPR-latestGoodPR < 20; currentPR++ {
-			currentSynopsis, err := findPRSynopsis(fmt.Sprintf("https://gnats.netbsd.org/%d", currentPR))
+			prUrl := toGnatsUrl(currentPR)
+			prText, err := getPRText(prUrl)
+			if err != nil {
+				return
+			}
+
+			currentSynopsis, err := findPRSynopsis(prText)
 			if err != nil {
 				continue
 			}
-			currentCategory, err := findPRCategory(fmt.Sprintf("https://gnats.netbsd.org/%d", currentPR))
+			currentCategory, err := findPRCategory(prText)
 			if err != nil {
 				continue
 			}
@@ -242,26 +251,15 @@ func ctcpReply(user, ctcpType, reply string) *irc.Message {
 	}
 }
 
-func findPRCategory(prUrl string) (string, error) {
-	resp, err := http.Get(prUrl)
-	if err != nil {
-		return "", err
+func findFirstSubmatch(prText string, rgx *regexp.Regexp) (string, error) {
+	rs := rgx.FindStringSubmatch(prText)
+	if len(rs) == 0 {
+		return "", errors.New("Regex not found in PR body")
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	rs := categoryRegexp.FindSubmatch(body)
-	if len(rs) > 1 {
-		prCategoryHtmlSanitized := rs[1]
-		prCategory := undoHtmlSanitize(string(prCategoryHtmlSanitized))
-		return prCategory, nil
-	}
-	return "", errors.New("Not found category in body")
+	return rs[1], nil
 }
 
-func findPRSynopsis(prUrl string) (string, error) {
+func getPRText(prUrl string) (string, error) {
 	resp, err := http.Get(prUrl)
 	if err != nil {
 		return "", err
@@ -271,13 +269,15 @@ func findPRSynopsis(prUrl string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rs := synopsisRegexp.FindSubmatch(body)
-	if len(rs) > 1 {
-		prSynopsisHtmlSanitized := rs[1]
-		prSynopsis := undoHtmlSanitize(string(prSynopsisHtmlSanitized))
-		return prSynopsis, nil
-	}
-	return "", errors.New("Not found synopsis in body")
+	return undoHtmlSanitize(string(body)), nil
+}
+
+func findPRCategory(prText string) (string, error) {
+	return findFirstSubmatch(prText, categoryRegexp)
+}
+
+func findPRSynopsis(prText string) (string, error) {
+	return findFirstSubmatch(prText, synopsisRegexp)
 }
 
 func findPR(msg string) (int, error) {
