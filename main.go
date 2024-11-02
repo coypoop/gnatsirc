@@ -151,15 +151,18 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 			prUrl := toGnatsUrl(currentPR)
 			prText, err := getPRText(prUrl)
 			if err != nil {
-				return
+				log.Printf("getPRText returned err %+v for PR URL #%s", err, prUrl)
+				continue
 			}
 
 			currentSynopsis, err := findPRSynopsis(prText)
 			if err != nil {
+				log.Printf("findPRSynopsis returned err %+v for prText %s", err, prText)
 				continue
 			}
 			currentCategory, err := findPRCategory(prText)
 			if err != nil {
+				log.Printf("findPRCategory returned err %+v for prText %s", err, prText)
 				continue
 			}
 			if !allowedCategory(currentCategory) {
