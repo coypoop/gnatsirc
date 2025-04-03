@@ -142,33 +142,51 @@ func main() {
 	}
 }
 
-func findLatestPR() int {
-	latestGoodPR := PRStartScan
-	log.Printf("Searching for first PR starting from %d", latestGoodPR)
-	for {
-		latestGoodPR = latestGoodPR + 1
-		prUrl := toGnatsUrl(latestGoodPR)
-		prText, err := getPRText(prUrl)
-		if err != nil {
-			break
-		}
-
-		_, err = findPRSynopsis(prText)
-		if err != nil {
-			break
-		}
-		log.Printf("PR %d exists", latestGoodPR)
+func prExists(prNum int) bool {
+	prUrl := toGnatsUrl(prNum)
+	prText, err := getPRText(prUrl)
+	if err != nil {
+		return false
 	}
-	log.Printf("PR %d doesn't exist", latestGoodPR)
-	return latestGoodPR - 1
+	_, err = findPRSynopsis(prText)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func findLatestGoodPR() int {
+	currentPR := PRStartScan
+	latestGoodPR := PRStartScan
+
+	// We allow multiple failed PRs in a row in case people made
+	// confidential PRs which look the same as non-existent PRs
+	badPRs := 0
+	for {
+		currentPR++
+		if prExists(currentPR) {
+			log.Printf("PR number %d exists, resetting bad PR count", currentPR)
+			latestGoodPR = currentPR
+			badPRs = 0
+		} else {
+			badPRs++
+			log.Printf("PR number %d doesn't exist, bad PR count: %d", currentPR, badPRs)
+		}
+		if badPRs > 5 {
+			return latestGoodPR
+		}
+	}
+
 }
 
 func observeNewPRs(c *irc.Client, ircChan string) {
-	latestGoodPR := findLatestPR()
-	fmt.Printf("Starting to observe new PRs beginning with %d", latestGoodPR)
+	latestGoodPR := findLatestGoodPR()
+	startPR := latestGoodPR + 1
+	fmt.Printf("Starting to observe new PRs beginning with %d", startPR)
 	for {
 		synopses := make(map[int]string)
-		for currentPR := latestGoodPR; currentPR-latestGoodPR < 20; currentPR++ {
+		for i := 0; i < 20; i++ {
+			currentPR := startPR + i
 			log.Printf("Checking out %d", currentPR)
 			prUrl := toGnatsUrl(currentPR)
 			prText, err := getPRText(prUrl)
@@ -176,7 +194,6 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 				log.Printf("getPRText returned err %+v for PR URL #%s", err, prUrl)
 				continue
 			}
-
 			currentSynopsis, err := findPRSynopsis(prText)
 			if err != nil {
 				log.Printf("findPRSynopsis returned err %v for PR %d (confidential/non-existent bug)", err, currentPR)
@@ -195,7 +212,8 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 			synopses[currentPR] = currentSynopsis
 		}
 
-		// Don't spam too much...
+		startPR = latestGoodPR + 1
+
 		if len(synopses) > 5 {
 			log.Printf("Was going to post >5 new PR messages to chat, skipping")
 			log.Printf("Would have printed: %v", synopses)
