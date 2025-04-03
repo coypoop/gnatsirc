@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	PRStartScan = 58805
+	PRStartScan = 59240
 )
 
 var (
@@ -82,6 +82,7 @@ func main() {
 				log.Printf("Joined %s", *ircChannel)
 				go observeNewPRs(c, *ircChannel)
 			} else if m.Command == "PRIVMSG" && c.FromChannel(m) {
+				log.Printf("%v", m)
 				if selfMsg(m.Trailing()) {
 					return
 				}
@@ -141,13 +142,34 @@ func main() {
 	}
 }
 
-func observeNewPRs(c *irc.Client, ircChan string) {
+func findLatestPR() int {
 	latestGoodPR := PRStartScan
-	lastPostedPR := PRStartScan
-	synopses := make(map[int]string)
-
+	log.Printf("Searching for first PR starting from %d", latestGoodPR)
 	for {
+		latestGoodPR = latestGoodPR + 1
+		prUrl := toGnatsUrl(latestGoodPR)
+		prText, err := getPRText(prUrl)
+		if err != nil {
+			break
+		}
+
+		_, err = findPRSynopsis(prText)
+		if err != nil {
+			break
+		}
+		log.Printf("PR %d exists", latestGoodPR)
+	}
+	log.Printf("PR %d doesn't exist", latestGoodPR)
+	return latestGoodPR - 1
+}
+
+func observeNewPRs(c *irc.Client, ircChan string) {
+	latestGoodPR := findLatestPR()
+	fmt.Printf("Starting to observe new PRs beginning with %d", latestGoodPR)
+	for {
+		synopses := make(map[int]string)
 		for currentPR := latestGoodPR; currentPR-latestGoodPR < 20; currentPR++ {
+			log.Printf("Checking out %d", currentPR)
 			prUrl := toGnatsUrl(currentPR)
 			prText, err := getPRText(prUrl)
 			if err != nil {
@@ -157,7 +179,7 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 
 			currentSynopsis, err := findPRSynopsis(prText)
 			if err != nil {
-				log.Printf("findPRSynopsis returned err %+v for prText %s", err, prText)
+				log.Printf("findPRSynopsis returned err %v for PR %d (confidential/non-existent bug)", err, currentPR)
 				continue
 			}
 			currentCategory, err := findPRCategory(prText)
@@ -166,34 +188,30 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 				continue
 			}
 			if !allowedCategory(currentCategory) {
+				log.Printf("category %s is not allowed", currentCategory)
 				continue
 			}
 			latestGoodPR = currentPR
 			synopses[currentPR] = currentSynopsis
 		}
 
-		// First run, stay silent.
-		if lastPostedPR == PRStartScan {
-			lastPostedPR = latestGoodPR
-		}
-
 		// Don't spam too much...
-		if latestGoodPR-lastPostedPR > 5 {
-			lastPostedPR = latestGoodPR - 5
+		if len(synopses) > 5 {
+			log.Printf("Was going to post >5 new PR messages to chat, skipping")
+			log.Printf("Would have printed: %v", synopses)
+			continue
 		}
 
-		for ; lastPostedPR < latestGoodPR; lastPostedPR++ {
-			if synopsis, ok := synopses[lastPostedPR+1]; ok {
-				outText := "new " + toGnatsUrl(lastPostedPR+1) + " " + synopsis
-				c.WriteMessage(&irc.Message{
-					Command: "PRIVMSG",
-					Params: []string{
-						ircChan,
-						outText,
-					},
-				})
+		for prNumber, synopsis := range synopses {
+			outText := "new " + toGnatsUrl(prNumber) + " " + synopsis
+			c.WriteMessage(&irc.Message{
+				Command: "PRIVMSG",
+				Params: []string{
+					ircChan,
+					outText,
+				},
+			})
 
-			}
 		}
 		time.Sleep(10 * time.Minute)
 	}
