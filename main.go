@@ -180,11 +180,15 @@ func findLatestGoodPR() int {
 }
 
 func observeNewPRs(c *irc.Client, ircChan string) {
+	type PrData struct {
+		Synopsis string
+		Category string
+	}
 	latestGoodPR := findLatestGoodPR()
 	startPR := latestGoodPR + 1
 	fmt.Printf("Starting to observe new PRs beginning with %d", startPR)
 	for {
-		synopses := make(map[int]string)
+		prDatas := make(map[int]PrData)
 		for i := 0; i < 20; i++ {
 			currentPR := startPR + i
 			log.Printf("Checking out %d", currentPR)
@@ -209,19 +213,23 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 				continue
 			}
 			latestGoodPR = currentPR
-			synopses[currentPR] = currentSynopsis
+			prDatas[currentPR] = PrData{
+				Synopsis: currentSynopsis,
+				Category: currentCategory,
+			}
 		}
 
 		startPR = latestGoodPR + 1
 
-		if len(synopses) > 5 {
+		if len(prDatas) > 5 {
 			log.Printf("Was going to post >5 new PR messages to chat, skipping")
-			log.Printf("Would have printed: %v", synopses)
+			log.Printf("Would have printed: %v", prDatas)
 			continue
 		}
 
-		for prNumber, synopsis := range synopses {
-			outText := "new " + toGnatsUrl(prNumber) + " " + synopsis
+		for prNumber, prData := range prDatas {
+			outText := fmt.Sprintf("new %s (%s) %s",
+				toGnatsUrl(prNumber), prData.Category, prData.Synopsis)
 			c.WriteMessage(&irc.Message{
 				Command: "PRIVMSG",
 				Params: []string{
