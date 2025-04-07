@@ -91,7 +91,6 @@ func main() {
 				}
 				prNum, err := findPR(m.Trailing())
 				if err == nil {
-					var outText string
 
 					prUrl := toGnatsUrl(prNum)
 					prText, err := getPRText(prUrl)
@@ -106,8 +105,12 @@ func main() {
 					if err != nil {
 						return
 					}
-
-					outText = prUrl + " (" + prState + ") " + prSynopsis
+					prCategory, err := findPRCategory(prText)
+					if err != nil {
+						return
+					}
+					outText := fmt.Sprintf("[%s] %s (%s) %s",
+						prState, prUrl, prCategory, prSynopsis)
 
 					c.WriteMessage(&irc.Message{
 						Command: "PRIVMSG",
@@ -231,7 +234,7 @@ func observeNewPRs(c *irc.Client, ircChan string) {
 		}
 
 		for prNumber, prData := range prDatas {
-			outText := fmt.Sprintf("new %s (%s) %s",
+			outText := fmt.Sprintf("[new] %s (%s) %s",
 				toGnatsUrl(prNumber), prData.Category, prData.Synopsis)
 			c.WriteMessage(&irc.Message{
 				Command: "PRIVMSG",
