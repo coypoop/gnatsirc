@@ -129,6 +129,8 @@ func main() {
 				default:
 					break
 				}
+			} else {
+				log.Printf("%v", m)
 			}
 		}),
 	}
