@@ -70,6 +70,9 @@ func main() {
 				log.Printf("Connected to server %s", *ircServer)
 				// 001 is a welcome event, so we identify join channels now
 				if ircPassword != "" {
+					log.Printf("Give the server a moment before authenticating")
+					time.Sleep(10 * time.Second)
+					log.Printf("Trying to authenticate")
 					c.WriteMessage(&irc.Message{
 						Command: "PRIVMSG",
 						Params: []string{
